@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+
+# Set TESTFLAG to 1 for placebo
+declare -i TESTFLAG=1
+declare -A SHARE
+
+ADDR="10.42.0.118"
+
+# The most retarded use of an associative array
+# 'keys' are remote source paths and 'values' are local target paths
+SHARE["$ADDR:mnt/MIRROR-0/movies"]="/home/gst/Movies"
+SHARE["$ADDR:mnt/MIRROR-0/tv-series"]="/home/gst/TV"
+SHARE["$ADDR:mnt/MIRROR-0/photos"]="/home/gst/Photos"
+SHARE["$ADDR:mnt/MIRROR-0/music"]="/home/gst/Music"
+SHARE["$ADDR:mnt/MIRROR-0/music_vid"]="/home/gst/MusicVid"
+SHARE["$ADDR:mnt/nas/Dropbox"]="/home/gst/Dropbox"
+SHARE["$ADDR:mnt/nas/disc-images"]="/home/gst/disc-images"
+SHARE["$ADDR:mnt/nas/backup"]="/home/gst/Backup"
+
+# Test if superuser
+if [[ $(whoami) != 'root' ]]; then
+	echo "Must be root to run $0"
+	exit 1;
+fi
+
+# Test if no command switches
+if [[ -z $1 ]]; then
+	echo "Usage: $0 [mount,unmount]"
+	exit 1;
+fi
+
+case "$1" in
+   "mount")
+      # Use '!' to access key instead of value
+      for src in ${!SHARE[@]}; do
+         # Test if already mounted
+         if $(mountpoint -q ${SHARE["$src"]}); then
+            echo "$src is already mounted at ${SHARE[$src]}"
+         else
+            echo "Mounting ${SHARE[$src]}"
+            if [[ $TESTFLAG -ne 1 ]]; then
+               mount -t nfs $src ${SHARE[$src]}
+            fi
+         fi
+         ((i++))
+      done
+      ;;
+
+   "unmount")
+      for target in ${SHARE[@]}; do
+         # Test if already mounted
+         if $(mountpoint -q $target); then
+            echo "Unmounting $target"
+            if [[ $TESTFLAG -ne 1 ]]; then
+               umount $target
+            fi
+         else
+            echo "$target is not mounted"
+         fi
+      done
+      ;;
+
+   *)
+      echo "Invalid option!"
+      exit 1
+      ;;
+esac
